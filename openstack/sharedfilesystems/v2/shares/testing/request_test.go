@@ -15,8 +15,24 @@ func TestCreate(t *testing.T) {
 
 	MockCreateResponse(t)
 
-	options := &shares.CreateOpts{Size: 1, Name: "my_test_share", ShareProto: "NFS"}
+	options := &shares.CreateOpts{Size: 1, Name: "my_test_share"}
 	n, err := shares.Create(client.ServiceClient(), options).Extract()
+
+	th.AssertNoErr(t, err)
+	th.AssertEquals(t, n.Name, "my_test_share")
+	th.AssertEquals(t, n.Size, 1)
+}
+
+func TestCreate213(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	MockCreate213Response(t)
+
+	n := shares.Share213{}
+
+	options := &shares.Create213Opts{Size: 1, Name: "my_test_share", ShareProto: "NFS"}
+	err := shares.Create(client.ServiceClient(), options).ExtractInto(&n)
 
 	th.AssertNoErr(t, err)
 	th.AssertEquals(t, n.Name, "my_test_share")
