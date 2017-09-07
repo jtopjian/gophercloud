@@ -33,6 +33,27 @@ func (opts CreateOpts) ToShareNetworkCreateMap() (map[string]interface{}, error)
 	return gophercloud.BuildRequestBody(opts, "share_network")
 }
 
+// CreateOpts232 contains options for creating a ShareNetwork.
+// Valid from microversion 2.32 (Ocata).
+// This object is passed to the sharenetworks.Create function. For more
+// information about these parameters, see the ShareNetwork object.
+type CreateOpts232 struct {
+	// The UUID of the Neutron network to set up for share servers
+	NeutronNetID string `json:"neutron_net_id,omitempty"`
+	// The UUID of the Neutron subnet to set up for share servers
+	NeutronSubnetID string `json:"neutron_subnet_id,omitempty"`
+	// The share network name
+	Name string `json:"name"`
+	// The share network description
+	Description string `json:"description"`
+}
+
+// ToShareNetworkCreateMap assembles a request body based on the contents of a
+// CreateOpts232.
+func (opts CreateOpts232) ToShareNetworkCreateMap() (map[string]interface{}, error) {
+	return gophercloud.BuildRequestBody(opts, "share_network")
+}
+
 // Create will create a new ShareNetwork based on the values in CreateOpts. To
 // extract the ShareNetwork object from the response, call the Extract method
 // on the CreateResult.
@@ -99,6 +120,44 @@ func (opts ListOpts) ToShareNetworkListQuery() (string, error) {
 	return q.String(), err
 }
 
+// ListOpts232 holds options for listing ShareNetworks.
+// Valid from Microversion 2.32 (Ocata).
+// It is passed to the sharenetworks.List function.
+type ListOpts232 struct {
+	// admin-only option. Set it to true to see all tenant share networks.
+	AllTenants bool `q:"all_tenants"`
+	// The UUID of the project where the share network was created
+	ProjectID string `q:"project_id"`
+	// The neutron network ID
+	NeutronNetID string `q:"neutron_net_id"`
+	// The neutron subnet ID
+	NeutronSubnetID string `q:"neutron_subnet_id"`
+	// The network type. A valid value is VLAN, VXLAN, GRE or flat
+	NetworkType string `q:"network_type"`
+	// The Share Network name
+	Name string `q:"name"`
+	// The Share Network description
+	Description string `q:"description"`
+	// The Share Network IP version
+	IPVersion gophercloud.IPVersion `q:"ip_version"`
+	// The Share Network segmentation ID
+	SegmentationID int `q:"segmentation_id"`
+	// List all share networks created after the given date
+	CreatedSince string `q:"created_since"`
+	// List all share networks created before the given date
+	CreatedBefore string `q:"created_before"`
+	// Limit specifies the page size.
+	Limit int `q:"limit"`
+	// Limit specifies the page number.
+	Offset int `q:"offset"`
+}
+
+// ToShareNetworkListQuery formats a ListOpts232 into a query string.
+func (opts ListOpts232) ToShareNetworkListQuery() (string, error) {
+	q, err := gophercloud.BuildQueryString(opts)
+	return q.String(), err
+}
+
 // ListDetail returns ShareNetworks optionally limited by the conditions provided in ListOpts.
 func ListDetail(client *gophercloud.ServiceClient, opts ListOptsBuilder) pagination.Pager {
 	url := listDetailURL(client)
@@ -149,6 +208,27 @@ type UpdateOpts struct {
 // ToShareNetworkUpdateMap assembles a request body based on the contents of an
 // UpdateOpts.
 func (opts UpdateOpts) ToShareNetworkUpdateMap() (map[string]interface{}, error) {
+	return gophercloud.BuildRequestBody(opts, "share_network")
+}
+
+// UpdateOpts232 contain options for updating an existing ShareNetwork.
+// Valid from Microversion 2.32 (Ocata).
+// This object is passed to the sharenetworks.Update function. For more
+// information about the parameters, see the ShareNetwork object.
+type UpdateOpts232 struct {
+	// The share network name
+	Name string `json:"name,omitempty"`
+	// The share network description
+	Description string `json:"description,omitempty"`
+	// The UUID of the Neutron network to set up for share servers
+	NeutronNetID string `json:"neutron_net_id,omitempty"`
+	// The UUID of the Neutron subnet to set up for share servers
+	NeutronSubnetID string `json:"neutron_subnet_id,omitempty"`
+}
+
+// ToShareNetworkUpdateMap assembles a request body based on the contents of an
+// UpdateOpts232.
+func (opts UpdateOpts232) ToShareNetworkUpdateMap() (map[string]interface{}, error) {
 	return gophercloud.BuildRequestBody(opts, "share_network")
 }
 

@@ -278,3 +278,185 @@ func TestRemoveSecurityService(t *testing.T) {
 	_, err := sharenetworks.RemoveSecurityService(client.ServiceClient(), "shareNetworkID", options).Extract()
 	th.AssertNoErr(t, err)
 }
+
+// Verifies that a share network can be created correctly
+// with microversion 2.32.
+func TestCreate232(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	MockCreateResponse(t)
+
+	options := &sharenetworks.CreateOpts232{
+		Name:            "my_network",
+		Description:     "This is my share network",
+		NeutronNetID:    "998b42ee-2cee-4d36-8b95-67b5ca1f2109",
+		NeutronSubnetID: "53482b62-2c84-4a53-b6ab-30d9d9800d06",
+	}
+
+	n, err := sharenetworks.Create(client.ServiceClient(), options).Extract232()
+	th.AssertNoErr(t, err)
+
+	th.AssertEquals(t, n.Name, "my_network")
+	th.AssertEquals(t, n.Description, "This is my share network")
+	th.AssertEquals(t, n.NeutronNetID, "998b42ee-2cee-4d36-8b95-67b5ca1f2109")
+	th.AssertEquals(t, n.NeutronSubnetID, "53482b62-2c84-4a53-b6ab-30d9d9800d06")
+}
+
+// Verifies that share networks can be listed correctly
+// with Microversion 2.32.
+func TestList232Detail(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	MockList232Response(t)
+
+	allPages, err := sharenetworks.ListDetail(client.ServiceClient(), &sharenetworks.ListOpts232{}).AllPages()
+
+	th.AssertNoErr(t, err)
+	actual, err := sharenetworks.ExtractShareNetworks232(allPages)
+	th.AssertNoErr(t, err)
+
+	var nilTime time.Time
+	expected := []sharenetworks.ShareNetwork232{
+		{
+			ID:              "32763294-e3d4-456a-998d-60047677c2fb",
+			Name:            "net_my1",
+			CreatedAt:       time.Date(2015, 9, 4, 14, 57, 13, 0, time.UTC),
+			Description:     "descr",
+			NetworkType:     "",
+			CIDR:            "",
+			NeutronNetID:    "998b42ee-2cee-4d36-8b95-67b5ca1f2109",
+			NeutronSubnetID: "53482b62-2c84-4a53-b6ab-30d9d9800d06",
+			IPVersion:       0,
+			SegmentationID:  0,
+			UpdatedAt:       nilTime,
+			ProjectID:       "16e1ab15c35a457e9c2b2aa189f544e1",
+		},
+		{
+			ID:              "713df749-aac0-4a54-af52-10f6c991e80c",
+			Name:            "net_my",
+			CreatedAt:       time.Date(2015, 9, 4, 14, 54, 25, 0, time.UTC),
+			Description:     "desecr",
+			NetworkType:     "",
+			CIDR:            "",
+			NeutronNetID:    "998b42ee-2cee-4d36-8b95-67b5ca1f2109",
+			NeutronSubnetID: "53482b62-2c84-4a53-b6ab-30d9d9800d06",
+			IPVersion:       0,
+			SegmentationID:  0,
+			UpdatedAt:       nilTime,
+			ProjectID:       "16e1ab15c35a457e9c2b2aa189f544e1",
+		},
+		{
+			ID:              "fa158a3d-6d9f-4187-9ca5-abbb82646eb2",
+			Name:            "",
+			CreatedAt:       time.Date(2015, 9, 4, 14, 51, 41, 0, time.UTC),
+			Description:     "",
+			NetworkType:     "",
+			CIDR:            "",
+			NeutronNetID:    "",
+			NeutronSubnetID: "",
+			IPVersion:       0,
+			SegmentationID:  0,
+			UpdatedAt:       nilTime,
+			ProjectID:       "16e1ab15c35a457e9c2b2aa189f544e1",
+		},
+	}
+
+	th.CheckDeepEquals(t, expected, actual)
+}
+
+// Verifies that share networks list can be called with query parameters
+// with Microversion 2.32.
+func TestPaginatedList232Detail(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	MockFilteredListResponse(t)
+
+	options := &sharenetworks.ListOpts232{
+		Offset: 0,
+		Limit:  1,
+	}
+
+	count := 0
+
+	err := sharenetworks.ListDetail(client.ServiceClient(), options).EachPage(func(page pagination.Page) (bool, error) {
+		count++
+		_, err := sharenetworks.ExtractShareNetworks232(page)
+		if err != nil {
+			t.Errorf("Failed to extract share networks: %v", err)
+			return false, err
+		}
+
+		return true, nil
+	})
+	th.AssertNoErr(t, err)
+
+	th.AssertEquals(t, count, 3)
+}
+
+// Verifies that it is possible to get a share network
+// with Microversion 2.32.
+func TestGet232(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	MockGet232Response(t)
+
+	var nilTime time.Time
+	expected := sharenetworks.ShareNetwork232{
+		ID:              "7f950b52-6141-4a08-bbb5-bb7ffa3ea5fd",
+		Name:            "net_my1",
+		CreatedAt:       time.Date(2015, 9, 4, 14, 56, 45, 0, time.UTC),
+		Description:     "descr",
+		NetworkType:     "",
+		CIDR:            "",
+		NeutronNetID:    "998b42ee-2cee-4d36-8b95-67b5ca1f2109",
+		NeutronSubnetID: "53482b62-2c84-4a53-b6ab-30d9d9800d06",
+		IPVersion:       0,
+		SegmentationID:  0,
+		UpdatedAt:       nilTime,
+		ProjectID:       "16e1ab15c35a457e9c2b2aa189f544e1",
+	}
+
+	n, err := sharenetworks.Get(client.ServiceClient(), "7f950b52-6141-4a08-bbb5-bb7ffa3ea5fd").Extract232()
+	th.AssertNoErr(t, err)
+
+	th.CheckDeepEquals(t, &expected, n)
+}
+
+// Verifies that it is possible to update a share network using neutron network
+// with Microversion 2.32.
+func TestUpdateNeutron232(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	MockUpdateNeutron232Response(t)
+
+	expected := sharenetworks.ShareNetwork232{
+		ID:              "713df749-aac0-4a54-af52-10f6c991e80c",
+		Name:            "net_my2",
+		CreatedAt:       time.Date(2015, 9, 4, 14, 54, 25, 0, time.UTC),
+		Description:     "new description",
+		NetworkType:     "",
+		CIDR:            "",
+		NeutronNetID:    "new-neutron-id",
+		NeutronSubnetID: "new-neutron-subnet-id",
+		IPVersion:       4,
+		SegmentationID:  0,
+		UpdatedAt:       time.Date(2015, 9, 7, 8, 2, 53, 512184000, time.UTC),
+		ProjectID:       "16e1ab15c35a457e9c2b2aa189f544e1",
+	}
+
+	options := sharenetworks.UpdateOpts{
+		Name:            "net_my2",
+		Description:     "new description",
+		NeutronNetID:    "new-neutron-id",
+		NeutronSubnetID: "new-neutron-subnet-id",
+	}
+
+	v, err := sharenetworks.Update(client.ServiceClient(), "713df749-aac0-4a54-af52-10f6c991e80c", options).Extract232()
+	th.AssertNoErr(t, err)
+	th.CheckDeepEquals(t, &expected, v)
+}

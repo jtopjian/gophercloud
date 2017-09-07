@@ -60,6 +60,55 @@ func (r *ShareNetwork) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// ShareNetwork232 contains all the information associated with an OpenStack
+// ShareNetwork.
+// Valid from Microversion 2.32 (Ocata).
+type ShareNetwork232 struct {
+	// The Share Network ID
+	ID string `json:"id"`
+	// The UUID of the project where the share network was created
+	ProjectID string `json:"project_id"`
+	// The neutron network ID
+	NeutronNetID string `json:"neutron_net_id"`
+	// The neutron subnet ID
+	NeutronSubnetID string `json:"neutron_subnet_id"`
+	// The network type. A valid value is VLAN, VXLAN, GRE or flat
+	NetworkType string `json:"network_type"`
+	// The segmentation ID
+	SegmentationID int `json:"segmentation_id"`
+	// The IP block from which to allocate the network, in CIDR notation
+	CIDR string `json:"cidr"`
+	// The IP version of the network. A valid value is 4 or 6
+	IPVersion int `json:"ip_version"`
+	// The Share Network name
+	Name string `json:"name"`
+	// The Share Network description
+	Description string `json:"description"`
+	// The date and time stamp when the Share Network was created
+	CreatedAt time.Time `json:"-"`
+	// The date and time stamp when the Share Network was updated
+	UpdatedAt time.Time `json:"-"`
+}
+
+func (r *ShareNetwork232) UnmarshalJSON(b []byte) error {
+	type tmp ShareNetwork232
+	var s struct {
+		tmp
+		CreatedAt gophercloud.JSONRFC3339MilliNoZ `json:"created_at"`
+		UpdatedAt gophercloud.JSONRFC3339MilliNoZ `json:"updated_at"`
+	}
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	*r = ShareNetwork232(s.tmp)
+
+	r.CreatedAt = time.Time(s.CreatedAt)
+	r.UpdatedAt = time.Time(s.UpdatedAt)
+
+	return nil
+}
+
 type commonResult struct {
 	gophercloud.Result
 }
@@ -140,6 +189,16 @@ func ExtractShareNetworks(r pagination.Page) ([]ShareNetwork, error) {
 	return s.ShareNetworks, err
 }
 
+// ExtractShareNetworks232 extracts and returns ShareNetworks232. It is used
+// while iterating over a sharenetworks.List call.
+func ExtractShareNetworks232(r pagination.Page) ([]ShareNetwork232, error) {
+	var s struct {
+		ShareNetworks232 []ShareNetwork232 `json:"share_networks"`
+	}
+	err := (r.(ShareNetworkPage)).ExtractInto(&s)
+	return s.ShareNetworks232, err
+}
+
 // Extract will get the ShareNetwork object out of the commonResult object.
 func (r commonResult) Extract() (*ShareNetwork, error) {
 	var s struct {
@@ -147,6 +206,16 @@ func (r commonResult) Extract() (*ShareNetwork, error) {
 	}
 	err := r.ExtractInto(&s)
 	return s.ShareNetwork, err
+}
+
+// Extract232 will get the ShareNetwork232 object out of the commonResult
+// object.
+func (r commonResult) Extract232() (*ShareNetwork232, error) {
+	var s struct {
+		ShareNetwork232 *ShareNetwork232 `json:"share_network"`
+	}
+	err := r.ExtractInto(&s)
+	return s.ShareNetwork232, err
 }
 
 // CreateResult contains the response body and error from a Create request.
