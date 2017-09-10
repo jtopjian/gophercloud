@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+var MicroversionHeaders = map[string]string{
+	"compute": "X-OpenStack-Nova-API-Version",
+	"sharev2": "X-OpenStack-Manila-API-Version",
+}
+
 // ServiceClient stores details required to interact with a specific service API implemented by a provider.
 // Generally, you'll acquire these by calling the appropriate `New` method on a ProviderClient.
 type ServiceClient struct {
@@ -109,14 +114,11 @@ func (client *ServiceClient) Delete(url string, opts *RequestOpts) (*http.Respon
 }
 
 func (client *ServiceClient) setMicroversionHeader(opts *RequestOpts) {
-	switch client.Type {
-	case "compute":
-		opts.MoreHeaders["X-OpenStack-Nova-API-Version"] = client.Microversion
-	case "sharev2":
-		opts.MoreHeaders["X-OpenStack-Manila-API-Version"] = client.Microversion
-	}
-
-	if client.Type != "" {
-		opts.MoreHeaders["OpenStack-API-Version"] = client.Type + " " + client.Microversion
+	if v, ok := MicroversionHeaders[client.Type]; ok {
+		opts.MoreHeaders[v] = client.Microversion
+	} else {
+		if client.Type != "" {
+			opts.MoreHeaders["OpenStack-API-Version"] = client.Type + " " + client.Microversion
+		}
 	}
 }

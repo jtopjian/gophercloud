@@ -7,8 +7,12 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/fatih/structs"
 )
 
 /*
@@ -129,6 +133,95 @@ func (r Result) extractIntoPtr(to interface{}, label string) error {
 	return err
 }
 
+func (r Result) extractIntoMapPtr(from interface{}, to interface{}) error {
+	var mv string
+	for _, mvHeader := range MicroversionHeaders {
+		mvHeader = strings.ToLower(mvHeader)
+		for header, values := range r.Header {
+			header = strings.ToLower(header)
+			if mvHeader == header {
+				mv = values[0]
+			}
+		}
+	}
+
+	fromValue := reflect.ValueOf(from)
+	if fromValue.Kind() == reflect.Ptr {
+		fromValue = fromValue.Elem()
+	}
+
+	switch fromValue.Kind() {
+	case reflect.Slice:
+		if v, ok := to.(*[]map[string]interface{}); ok {
+			for i := 0; i < fromValue.Len(); i++ {
+				m, err := structToMicroversionMap(fromValue.Index(i).Interface(), mv)
+				if err != nil {
+					return err
+				}
+
+				*v = append(*v, *m)
+			}
+		}
+	case reflect.Struct:
+		if v, ok := to.(*map[string]interface{}); ok {
+			m, err := structToMicroversionMap(from, mv)
+			if err != nil {
+				return err
+			}
+
+			*v = *m
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func structToMicroversionMap(from interface{}, mv string) (*map[string]interface{}, error) {
+	s := structs.New(from)
+
+	ccRe1 := regexp.MustCompile(`(.)([A-Z]+[a-z]+)`)
+	ccRe2 := regexp.MustCompile(`([a-z0-9])([A-Z])`)
+
+	var fieldsToRemove []string
+	m := make(map[string]interface{})
+
+	for _, field := range s.Fields() {
+		if field.IsEmbedded() {
+			fieldsToRemove = append(fieldsToRemove, field.Name())
+			embMap, err := structToMicroversionMap(field.Value(), mv)
+			if err != nil {
+				return nil, err
+			}
+
+			for k, v := range *embMap {
+				m[k] = v
+			}
+		} else {
+			var skip bool
+			if v := field.Tag("min_version"); v != "" {
+				if !ValidMicroversion(mv, v, "min") {
+					skip = true
+				}
+			}
+
+			if v := field.Tag("max_version"); v != "" && mv != "" {
+				if !ValidMicroversion(mv, v, "max") {
+					skip = true
+				}
+			}
+
+			if !skip {
+				ccName := ccRe1.ReplaceAllString(field.Name(), "${1}_${2}")
+				ccName = strings.ToLower(ccRe2.ReplaceAllString(ccName, "${1}_${2}"))
+				m[ccName] = field.Value()
+			}
+		}
+	}
+
+	return &m, nil
+}
+
 // ExtractIntoStructPtr will unmarshal the Result (r) into the provided
 // interface{} (to).
 //
@@ -178,6 +271,41 @@ func (r Result) ExtractIntoSlicePtr(to interface{}, label string) error {
 		return r.extractIntoPtr(to, label)
 	default:
 		return fmt.Errorf("Expected pointer to slice, got: %v", t)
+	}
+}
+
+// ExtractIntoMapPtr will unmarshal the Result (r) into the provided
+// map[string]interface{} (to).
+//
+// NOTE: For internal use only
+//
+// `to` must be a pointer to an underlying map type.
+func (r Result) ExtractIntoMapPtr(from, to interface{}) error {
+	if r.Err != nil {
+		return r.Err
+	}
+
+	t := reflect.TypeOf(from)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	if t.Kind() != reflect.Struct && t.Kind() != reflect.Slice {
+		return fmt.Errorf("Expected struct or slice, got: %v", t)
+	}
+
+	t = reflect.TypeOf(to)
+	if k := t.Kind(); k != reflect.Ptr {
+		return fmt.Errorf("Expected pointer, got %v", k)
+	}
+
+	switch t.Elem().Kind() {
+	case reflect.Map:
+		return r.extractIntoMapPtr(from, to)
+	case reflect.Slice:
+		return r.extractIntoMapPtr(from, to)
+	default:
+		return fmt.Errorf("Expected pointer to map or slice, got: %v", t)
 	}
 }
 
