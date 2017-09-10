@@ -120,3 +120,40 @@ func TestNormalizePathURL(t *testing.T) {
 	th.CheckEquals(t, expected, result)
 
 }
+
+func TestValidMicroversion(t *testing.T) {
+	var actual bool
+
+	actual = gophercloud.ValidMicroversion("", "2.3", "min")
+	th.AssertEquals(t, false, actual)
+
+	actual = gophercloud.ValidMicroversion("2.1", "", "min")
+	th.AssertEquals(t, false, actual)
+
+	actual = gophercloud.ValidMicroversion("2.3", "2.3", "min")
+	th.AssertEquals(t, true, actual)
+
+	actual = gophercloud.ValidMicroversion("2.3", "2.1", "min")
+	th.AssertEquals(t, true, actual)
+
+	actual = gophercloud.ValidMicroversion("2.32", "2.1", "min")
+	th.AssertEquals(t, true, actual)
+
+	actual = gophercloud.ValidMicroversion("2.1", "2.32", "min")
+	th.AssertEquals(t, false, actual)
+
+	actual = gophercloud.ValidMicroversion("", "2.1", "max")
+	th.AssertEquals(t, false, actual)
+
+	actual = gophercloud.ValidMicroversion("2.1", "", "max")
+	th.AssertEquals(t, false, actual)
+
+	actual = gophercloud.ValidMicroversion("2.1", "2.1", "max")
+	th.AssertEquals(t, true, actual)
+
+	actual = gophercloud.ValidMicroversion("2.1", "2.3", "max")
+	th.AssertEquals(t, true, actual)
+
+	actual = gophercloud.ValidMicroversion("2.3", "2.1", "max")
+	th.AssertEquals(t, false, actual)
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -99,4 +100,30 @@ func NormalizePathURL(basePath, rawPath string) (string, error) {
 	u.Scheme = "file"
 	return u.String(), nil
 
+}
+
+func ValidMicroversion(given, required, direction string) bool {
+	var err error
+	var givenF, requiredF float64
+
+	givenF, err = strconv.ParseFloat(given, 64)
+	if err != nil {
+		return false
+	}
+
+	requiredF, err = strconv.ParseFloat(required, 64)
+	if err != nil {
+		return false
+	}
+
+	switch direction {
+	case "min":
+		return givenF >= requiredF
+	case "max":
+		return givenF <= requiredF
+	default:
+		return false
+	}
+
+	return false
 }
