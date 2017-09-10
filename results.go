@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -129,6 +130,124 @@ func (r Result) extractIntoPtr(to interface{}, label string) error {
 	return err
 }
 
+// filterMicroversion will check if Result has a valid microversion header.
+// If so, it will iterate through the fields of `from`, checking for valid
+// microversion tags, and making a comparison as to if the field is part of a
+// microversioned result. A custom struct of valid fields is then created as
+// the `to` interface.
+func (r Result) filterMicroversion(from interface{}, to *interface{}) error {
+	var mv string
+	for _, mvHeader := range MicroversionHeaders {
+		mvHeader = strings.ToLower(mvHeader)
+		for header, values := range r.Header {
+			header = strings.ToLower(header)
+			if mvHeader == header {
+				mv = values[0]
+			}
+		}
+	}
+
+	fromValue := reflect.ValueOf(from)
+	if fromValue.Kind() == reflect.Ptr {
+		fromValue = fromValue.Elem()
+	}
+
+	fromType := reflect.TypeOf(from)
+	if fromType.Kind() == reflect.Ptr {
+		fromType = fromType.Elem()
+	}
+
+	var fields []reflect.StructField
+	switch fromValue.Kind() {
+	case reflect.Slice:
+		typeOfV := fromValue.Type().Elem()
+		if typeOfV.Kind() == reflect.Struct {
+			for i := 0; i < typeOfV.NumField(); i++ {
+				var skip bool
+				f := typeOfV.Field(i)
+				if v := f.Tag.Get("min_version"); v != "" {
+					if !ValidMicroversion(mv, v, "min") {
+						skip = true
+					}
+				}
+
+				if v := f.Tag.Get("max_version"); v != "" && mv != "" {
+					if !ValidMicroversion(mv, v, "max") {
+						skip = true
+					}
+				}
+
+				if !skip {
+					fields = append(fields, f)
+				}
+
+			}
+			newStruct := reflect.StructOf(fields)
+			newSlice := reflect.MakeSlice(reflect.SliceOf(newStruct), 0, 0)
+			v := reflect.New(newSlice.Type()).Interface()
+			*to = v
+		}
+	case reflect.Struct:
+		for i := 0; i < fromValue.NumField(); i++ {
+			var skip bool
+
+			f := fromType.Field(i)
+
+			if v := f.Tag.Get("min_version"); v != "" {
+				if !ValidMicroversion(mv, v, "min") {
+					skip = true
+				}
+			}
+
+			if v := f.Tag.Get("max_version"); v != "" && mv != "" {
+				if !ValidMicroversion(mv, v, "max") {
+					skip = true
+				}
+			}
+
+			if !skip {
+				fields = append(fields, f)
+			}
+		}
+		newStruct := reflect.StructOf(fields)
+		v := reflect.New(newStruct).Interface()
+		*to = v
+	}
+
+	return nil
+}
+
+func (r Result) extractIntoMapPtr(from, to interface{}) error {
+	// Convert the normalized struct into JSON.
+	b, err := json.Marshal(from)
+	if err != nil {
+		return err
+	}
+
+	// Create a filtered struct.
+	var v interface{}
+	err = r.filterMicroversion(from, &v)
+	if err != nil {
+		return err
+	}
+
+	// Marshal the JSON into the filtered structure.
+	err = json.Unmarshal(b, v)
+	if err != nil {
+		return err
+	}
+
+	// Marshal the filtered structure
+	b, err = json.Marshal(&v)
+	if err != nil {
+		return err
+	}
+
+	// Unmarshal the bytes into the map
+	err = json.Unmarshal(b, &to)
+	return err
+}
+
 // ExtractIntoStructPtr will unmarshal the Result (r) into the provided
 // interface{} (to).
 //
@@ -179,6 +298,74 @@ func (r Result) ExtractIntoSlicePtr(to interface{}, label string) error {
 	default:
 		return fmt.Errorf("Expected pointer to slice, got: %v", t)
 	}
+}
+
+// ExtractIntoMapPtr will unmarshal the Result (r) into the provided
+// map[string]interface{} (to).
+//
+// NOTE: For internal use only
+//
+// `to` must be a pointer to an underlying map type.
+//
+// If provided, `label` will be filtered out of the response
+// body prior to `r` being unmarshalled into `to`.
+func (r Result) ExtractIntoMapPtr(from, to interface{}) error {
+	if r.Err != nil {
+		return r.Err
+	}
+
+	t := reflect.TypeOf(from)
+	if k := t.Kind(); k != reflect.Ptr {
+		return fmt.Errorf("Expected pointer, got %v", k)
+	}
+
+	if t.Elem().Kind() != reflect.Struct && t.Elem().Kind() != reflect.Slice {
+		return fmt.Errorf("Expected pointer to struct or slice, got: %v", t)
+	}
+
+	t = reflect.TypeOf(to)
+	if k := t.Kind(); k != reflect.Ptr {
+		return fmt.Errorf("Expected pointer, got %v", k)
+	}
+
+	switch t.Elem().Kind() {
+	case reflect.Map:
+		return r.extractIntoMapPtr(from, to)
+	case reflect.Slice:
+		return r.extractIntoMapPtr(from, to)
+	default:
+		return fmt.Errorf("Expected pointer to map or slice, got: %v", t)
+	}
+}
+
+// FilterMicroversion will create a new struct based on the Result's (r)
+// microversion tags and store that struct in a new interface{} (to).
+//
+// NOTE: For internal use only
+//
+// `from` must be a pointer to an underlying struct type.
+// `to` must be a pointer to an interface{}.
+//
+// This result of this function is virtually non-usable and should only
+// be used when creating a usable map from a microversioned result unless
+// you know what you're doing.
+//
+// Not tested yet.
+func (r Result) FilterMicroversion(from, to interface{}) error {
+	t := reflect.TypeOf(from)
+	if k := t.Kind(); k != reflect.Ptr {
+		return fmt.Errorf("Expected pointer, got %v", k)
+	}
+	if t.Elem().Kind() != reflect.Struct && t.Elem().Kind() != reflect.Slice {
+		return fmt.Errorf("Expected pointer to struct or slice, got: %v", t)
+	}
+
+	t = reflect.TypeOf(to)
+	if k := t.Kind(); k != reflect.Ptr {
+		return fmt.Errorf("Expected pointer, got %v", k)
+	}
+
+	return r.filterMicroversion(from, &to)
 }
 
 // PrettyPrintJSON creates a string containing the full response body as
