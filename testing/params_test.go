@@ -128,6 +128,67 @@ func TestQueriesAreEscaped(t *testing.T) {
 	th.AssertDeepEquals(t, expected, actual)
 }
 
+func TestBuildRequestBodyVersioned(t *testing.T) {
+	type CreateOpts struct {
+		Name       string `json:"name"`
+		FlavorName string `json:"flavor_name" minversion:"2.2"`
+		ImageName  string `json:"image_name" maxversion:"2.5"`
+		AdminPass  string `json:"admin_pass" minversion:"2.1" maxversion:"2.4"`
+	}
+
+	var successCases = []struct {
+		version  string
+		opts     CreateOpts
+		expected map[string]interface{}
+	}{
+		{
+			"2.0",
+			CreateOpts{
+				Name:      "foo",
+				ImageName: "bar",
+			},
+			map[string]interface{}{
+				"name":       "foo",
+				"image_name": "bar",
+			},
+		},
+		{
+			"2.2",
+			CreateOpts{
+				Name:       "foo",
+				FlavorName: "baz",
+				ImageName:  "bar",
+				AdminPass:  "password",
+			},
+			map[string]interface{}{
+				"name":        "foo",
+				"flavor_name": "baz",
+				"image_name":  "bar",
+				"admin_pass":  "password",
+			},
+		},
+		{
+			"2.5",
+			CreateOpts{
+				Name:       "foo",
+				FlavorName: "baz",
+				ImageName:  "bar",
+			},
+			map[string]interface{}{
+				"name":        "foo",
+				"flavor_name": "baz",
+				"image_name":  "bar",
+			},
+		},
+	}
+
+	for _, successCase := range successCases {
+		actual, err := gophercloud.BuildRequestBody(successCase.opts, "", successCase.version)
+		th.AssertNoErr(t, err)
+		th.AssertDeepEquals(t, successCase.expected, actual)
+	}
+}
+
 func TestBuildRequestBody(t *testing.T) {
 	type PasswordCredentials struct {
 		Username string `json:"username" required:"true"`

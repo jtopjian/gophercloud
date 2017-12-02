@@ -32,7 +32,19 @@ BuildRequestBody is used within Gophercloud to more fully understand how it
 fits within the request process as a whole rather than use it directly as shown
 above.
 */
-func BuildRequestBody(opts interface{}, parent string) (map[string]interface{}, error) {
+func BuildRequestBody(opts interface{}, buildOpts ...string) (map[string]interface{}, error) {
+	var parent string
+	var version string
+	var excludedFields []string
+
+	switch len(buildOpts) {
+	case 1:
+		parent = buildOpts[0]
+	case 2:
+		parent = buildOpts[0]
+		version = buildOpts[1]
+	}
+
 	optsValue := reflect.ValueOf(opts)
 	if optsValue.Kind() == reflect.Ptr {
 		optsValue = optsValue.Elem()
@@ -47,6 +59,7 @@ func BuildRequestBody(opts interface{}, parent string) (map[string]interface{}, 
 	if optsValue.Kind() == reflect.Struct {
 		//fmt.Printf("optsValue.Kind() is a reflect.Struct: %+v\n", optsValue.Kind())
 		for i := 0; i < optsValue.NumField(); i++ {
+			var fieldName string
 			v := optsValue.Field(i)
 			f := optsType.Field(i)
 
@@ -140,6 +153,46 @@ func BuildRequestBody(opts interface{}, parent string) (map[string]interface{}, 
 					return nil, err
 				}
 			}
+
+			// microversion checks
+			if version != "" {
+				microversion, err := strconv.ParseFloat(version, 32)
+				if err != nil {
+					return nil, err
+				}
+
+				if jsonTag := f.Tag.Get("json"); jsonTag != "" {
+					jsonTagPieces := strings.Split(jsonTag, ",")
+					fieldName = jsonTagPieces[0]
+				}
+
+				if minversion := f.Tag.Get("minversion"); minversion != "" {
+					v, err := strconv.ParseFloat(minversion, 32)
+					if err != nil {
+						return nil, err
+					}
+
+					if microversion < v {
+						if fieldName != "" {
+							excludedFields = append(excludedFields, fieldName)
+						}
+					}
+				}
+
+				if maxversion := f.Tag.Get("maxversion"); maxversion != "" {
+					v, err := strconv.ParseFloat(maxversion, 32)
+					if err != nil {
+						return nil, err
+					}
+
+					if microversion > v {
+						if fieldName != "" {
+							excludedFields = append(excludedFields, fieldName)
+						}
+					}
+				}
+			}
+
 		}
 
 		//fmt.Printf("opts: %+v \n", opts)
@@ -157,6 +210,11 @@ func BuildRequestBody(opts interface{}, parent string) (map[string]interface{}, 
 		}
 
 		//fmt.Printf("optsMap: %+v\n", optsMap)
+
+		// filter out excluded fields
+		for _, excludedField := range excludedFields {
+			delete(optsMap, excludedField)
+		}
 
 		if parent != "" {
 			optsMap = map[string]interface{}{parent: optsMap}
