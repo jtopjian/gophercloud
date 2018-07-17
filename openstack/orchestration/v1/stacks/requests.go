@@ -262,7 +262,13 @@ func Get(c *gophercloud.ServiceClient, stackName, stackID string) (r GetResult) 
 // UpdateOptsBuilder is the interface options structs have to satisfy in order
 // to be used in the Update operation in this package.
 type UpdateOptsBuilder interface {
-	ToStackUpdateMap(existing bool) (map[string]interface{}, error)
+	ToStackUpdateMap() (map[string]interface{}, error)
+}
+
+// UpdatePatchOptsBuilder is the interface options structs have to satisfy in order
+// to be used in the UpdatePatch operation in this package.
+type UpdatePatchOptsBuilder interface {
+	ToStackUpdatePatchMap() (map[string]interface{}, error)
 }
 
 // UpdateOpts contains the common options struct used in this package's Update
@@ -281,65 +287,18 @@ type UpdateOpts struct {
 	Tags []string `json:"-"`
 }
 
-// ToStackUpdateMap casts a CreateOpts struct to a map.
-// If the param "existing" == false, TemplateOpts is required.
-func (opts UpdateOpts) ToStackUpdateMap(existing bool) (map[string]interface{}, error) {
-	b, err := gophercloud.BuildRequestBody(opts, "")
-	if err != nil {
-		return nil, err
-	}
-
-	files := make(map[string]string)
-
-	// Template is only required on PUT update
-	if opts.TemplateOpts != nil {
-		if err := opts.TemplateOpts.Parse(); err != nil {
-			return nil, err
-		}
-
-		if err := opts.TemplateOpts.getFileContents(opts.TemplateOpts.Parsed, ignoreIfTemplate, true); err != nil {
-			return nil, err
-		}
-		opts.TemplateOpts.fixFileRefs()
-		b["template"] = string(opts.TemplateOpts.Bin)
-
-		for k, v := range opts.TemplateOpts.Files {
-			files[k] = v
-		}
-	} else if !existing {
+func (opts UpdateOpts) ToStackUpdateMap() (map[string]interface{}, error) {
+	if opts.TemplateOpts == nil {
 		return nil, ErrTemplateRequired{}
 	}
 
-	if opts.EnvironmentOpts != nil {
-		if err := opts.EnvironmentOpts.Parse(); err != nil {
-			return nil, err
-		}
-		if err := opts.EnvironmentOpts.getRRFileContents(ignoreIfEnvironment); err != nil {
-			return nil, err
-		}
-		opts.EnvironmentOpts.fixFileRefs()
-		for k, v := range opts.EnvironmentOpts.Files {
-			files[k] = v
-		}
-		b["environment"] = string(opts.EnvironmentOpts.Bin)
-	}
-
-	if len(files) > 0 {
-		b["files"] = files
-	}
-
-	if opts.Tags != nil {
-		b["tags"] = strings.Join(opts.Tags, ",")
-	}
-
-	return b, nil
+	return toStackUpdateMap(opts)
 }
 
 // Update accepts an UpdateOpts struct and updates an existing stack using the values
 // provided.
 func Update(c *gophercloud.ServiceClient, stackName, stackID string, opts UpdateOptsBuilder) (r UpdateResult) {
-	const existing = false
-	b, err := opts.ToStackUpdateMap(existing)
+	b, err := opts.ToStackUpdateMap()
 	if err != nil {
 		r.Err = err
 		return
@@ -348,11 +307,14 @@ func Update(c *gophercloud.ServiceClient, stackName, stackID string, opts Update
 	return
 }
 
+func (opts UpdateOpts) ToStackUpdatePatchMap() (map[string]interface{}, error) {
+	return toStackUpdateMap(opts)
+}
+
 // UpdatePatch accepts an UpdateOpts struct and updates an existing stack using the
 // parameters provided.  opts.TemplateOpts is optional
-func UpdatePatch(c *gophercloud.ServiceClient, stackName, stackID string, opts UpdateOptsBuilder) (r UpdateResult) {
-	const existing = true
-	b, err := opts.ToStackUpdateMap(existing)
+func UpdatePatch(c *gophercloud.ServiceClient, stackName, stackID string, opts UpdatePatchOptsBuilder) (r UpdateResult) {
+	b, err := opts.ToStackUpdatePatchMap()
 	if err != nil {
 		r.Err = err
 		return
@@ -458,4 +420,55 @@ func Abandon(c *gophercloud.ServiceClient, stackName, stackID string) (r Abandon
 		OkCodes:      []int{200},
 	})
 	return
+}
+
+// toStackUpdateMap casts an UpdateOpts to a map.
+func toStackUpdateMap(opts UpdateOpts) (map[string]interface{}, error) {
+	b, err := gophercloud.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	files := make(map[string]string)
+
+	// Template is only required on PUT update
+	if opts.TemplateOpts != nil {
+		if err := opts.TemplateOpts.Parse(); err != nil {
+			return nil, err
+		}
+
+		if err := opts.TemplateOpts.getFileContents(opts.TemplateOpts.Parsed, ignoreIfTemplate, true); err != nil {
+			return nil, err
+		}
+		opts.TemplateOpts.fixFileRefs()
+		b["template"] = string(opts.TemplateOpts.Bin)
+
+		for k, v := range opts.TemplateOpts.Files {
+			files[k] = v
+		}
+	}
+
+	if opts.EnvironmentOpts != nil {
+		if err := opts.EnvironmentOpts.Parse(); err != nil {
+			return nil, err
+		}
+		if err := opts.EnvironmentOpts.getRRFileContents(ignoreIfEnvironment); err != nil {
+			return nil, err
+		}
+		opts.EnvironmentOpts.fixFileRefs()
+		for k, v := range opts.EnvironmentOpts.Files {
+			files[k] = v
+		}
+		b["environment"] = string(opts.EnvironmentOpts.Bin)
+	}
+
+	if len(files) > 0 {
+		b["files"] = files
+	}
+
+	if opts.Tags != nil {
+		b["tags"] = strings.Join(opts.Tags, ",")
+	}
+
+	return b, nil
 }
