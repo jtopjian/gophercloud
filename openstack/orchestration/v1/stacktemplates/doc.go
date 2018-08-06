@@ -36,4 +36,5 @@ Example to validate stack template
     }
 
 */
+
 package stacktemplates

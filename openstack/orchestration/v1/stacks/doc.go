@@ -9,18 +9,19 @@ of the application framework or component.
 
 Prepare required import packages
 
-import (
-  "fmt"
-  "github.com/gophercloud/gophercloud"
-  "github.com/gophercloud/gophercloud/openstack"
-  "github.com/gophercloud/gophercloud/openstack/orchestration/v1/stacks"
-)
+	import (
+		"fmt"
+		"github.com/gophercloud/gophercloud"
+		"github.com/gophercloud/gophercloud/openstack"
+		"github.com/gophercloud/gophercloud/openstack/orchestration/v1/stacks"
+	)
 
 Example of Preparing Orchestration client:
 
     client, err := openstack.NewOrchestrationV1(provider,  gophercloud.EndpointOpts{Region: "RegionOne"})
 
 Example of List Stack:
+
     all_stack_pages, err := stacks.List(client, nil).AllPages()
     if err != nil {
         panic(err)
