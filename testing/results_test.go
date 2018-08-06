@@ -206,3 +206,21 @@ func TestUnmarshalSliceOfNamedStructs(t *testing.T) {
 	th.AssertEquals(t, "", actual[1].TestPerson.Name)
 	th.AssertEquals(t, "", actual[1].TestPersonExt.Location)
 }
+
+func TestExtractIntoSlicePtrNotPtr(t *testing.T) {
+	var actual []TestPersonWithExtensionsNamed
+
+	var dejson interface{}
+	sejson := []byte(multiResponse)
+	err := json.Unmarshal(sejson, &dejson)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var multiResult = gophercloud.Result{
+		Body: dejson,
+	}
+
+	err = multiResult.ExtractIntoSlicePtr(actual, "people")
+	th.AssertEquals(t, "Expected pointer, got slice", err.Error())
+}

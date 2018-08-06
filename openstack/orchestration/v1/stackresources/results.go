@@ -11,7 +11,7 @@ import (
 // Resource represents a stack resource.
 type Resource struct {
 	Attributes   map[string]interface{} `json:"attributes"`
-	CreationTime time.Time              `json:"-"`
+	CreationTime time.Time              `json:"creation_time"`
 	Description  string                 `json:"description"`
 	Links        []gophercloud.Link     `json:"links"`
 	LogicalID    string                 `json:"logical_resource_id"`

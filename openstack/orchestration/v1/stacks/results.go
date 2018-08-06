@@ -48,7 +48,7 @@ func (r StackPage) IsEmpty() (bool, error) {
 
 // ListedStack represents an element in the slice extracted from a List operation.
 type ListedStack struct {
-	CreationTime time.Time          `json:"-"`
+	CreationTime time.Time          `json:"creation_time"`
 	Description  string             `json:"description"`
 	ID           string             `json:"id"`
 	Links        []gophercloud.Link `json:"links"`
@@ -112,7 +112,7 @@ func ExtractStacks(r pagination.Page) ([]ListedStack, error) {
 // RetrievedStack represents the object extracted from a Get operation.
 type RetrievedStack struct {
 	Capabilities        []interface{}            `json:"capabilities"`
-	CreationTime        time.Time                `json:"-"`
+	CreationTime        time.Time                `json:"creation_time"`
 	Description         string                   `json:"description"`
 	DisableRollback     bool                     `json:"disable_rollback"`
 	ID                  string                   `json:"id"`
@@ -197,7 +197,7 @@ type DeleteResult struct {
 // PreviewedStack represents the result of a Preview operation.
 type PreviewedStack struct {
 	Capabilities        []interface{}      `json:"capabilities"`
-	CreationTime        time.Time          `json:"-"`
+	CreationTime        time.Time          `json:"creation_time"`
 	Description         string             `json:"description"`
 	DisableRollback     bool               `json:"disable_rollback"`
 	ID                  string             `json:"id"`

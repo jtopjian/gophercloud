@@ -281,6 +281,9 @@ func (jt *JSONRFC3339Milli) UnmarshalJSON(data []byte) error {
 	if err := dec.Decode(&s); err != nil {
 		return err
 	}
+	if s == "" {
+		return nil
+	}
 	t, err := time.Parse(RFC3339Milli, s)
 	if err != nil {
 		return err

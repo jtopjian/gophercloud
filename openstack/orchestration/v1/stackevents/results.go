@@ -13,7 +13,7 @@ type Event struct {
 	// The name of the resource for which the event occurred.
 	ResourceName string `json:"resource_name"`
 	// The time the event occurred.
-	Time time.Time `json:"-"`
+	Time time.Time `json:"event_time"`
 	// The URLs to the event.
 	Links []gophercloud.Link `json:"links"`
 	// The logical ID of the stack resource.
