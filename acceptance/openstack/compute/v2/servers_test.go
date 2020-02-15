@@ -516,14 +516,7 @@ func TestServersTags(t *testing.T) {
 	client.Microversion = "2.26"
 
 	// Check server tags in body.
-	type serverWithTagsExt struct {
-		servers.Server
-		servers.TagsExt
-	}
-
-	serverWithTags := serverWithTagsExt{}
-
-	err = servers.Get(client, server.ID).ExtractInto(&serverWithTags)
+	serverWithTags, err := servers.Get(client, server.ID).Extract()
 	th.AssertNoErr(t, err)
 	th.AssertDeepEquals(t, []string{"tag1", "tag2"}, serverWithTags.Tags)
 
