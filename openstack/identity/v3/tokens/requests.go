@@ -17,7 +17,7 @@ type AuthOptionsBuilder interface {
 	// ToTokenV3CreateMap assembles the Create request body, returning an error
 	// if parameters are missing or inconsistent.
 	ToTokenV3CreateMap(map[string]interface{}) (map[string]interface{}, error)
-	ToTokenV3CreateHeaders(string, string) (map[string]string, error)
+	ToTokenV3HeadersMap(map[string]interface{}) (map[string]string, error)
 	ToTokenV3ScopeMap() (map[string]interface{}, error)
 	CanReauth() bool
 }
@@ -111,6 +111,12 @@ func (opts *AuthOptions) CanReauth() bool {
 	}
 
 	return opts.AllowReauth
+}
+
+// ToTokenV3HeadersMap allows AuthOptions to satisfy the AuthOptionsBuilder
+// interface in the v3 tokens package.
+func (opts *AuthOptions) ToTokenV3HeadersMap(map[string]interface{}) (map[string]string, error) {
+	return nil, nil
 }
 
 func subjectTokenHeaders(subjectToken string) map[string]string {
